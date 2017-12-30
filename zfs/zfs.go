@@ -5,6 +5,7 @@ package zfs // import "davidb.org/x/gack/zfs"
 import (
 	"bufio"
 	"bytes"
+	"errors"
 	"log"
 	"os"
 	"os/exec"
@@ -76,6 +77,7 @@ type DataSet struct {
 	Path  Path
 	Name  string
 	Snaps []string
+	Books []string
 }
 
 func GetSnaps(path Path) ([]*DataSet, error) {
@@ -102,11 +104,19 @@ func GetSnaps(path Path) ([]*DataSet, error) {
 		vols := strings.SplitN(line, "@", 2)
 
 		if len(vols) == 1 {
-			ds = append(ds, &DataSet{
-				Path:  path,
-				Name:  vols[0],
-				Snaps: []string{},
-			})
+			vols = strings.SplitN(line, "#", 2)
+			if len(vols) == 1 {
+				ds = append(ds, &DataSet{
+					Path: path,
+					Name: vols[0],
+				})
+			} else {
+				last := ds[len(ds)-1]
+				if vols[0] != last.Name {
+					panic("Output of `zfs list` has bookmark out of order")
+				}
+				last.Books = append(last.Books, vols[1])
+			}
 		} else {
 			last := ds[len(ds)-1]
 			if vols[0] != last.Name {
@@ -120,4 +130,38 @@ func GetSnaps(path Path) ([]*DataSet, error) {
 	}
 
 	return ds, nil
+}
+
+// Bookmark creates a bookmark of the same name from a given snapshot.
+func (ds *DataSet) Bookmark(name string) error {
+	var stderr bytes.Buffer
+
+	cmd := ds.Path.Command("bookmark", ds.Name+"@"+name, "#"+name)
+	cmd.Stderr = &stderr
+
+	err := cmd.Run()
+	if err == nil && stderr.Len() == 0 {
+		return nil
+	}
+
+	// If there is an error, allow it if it is the 'bookmark
+	// exists' error.  It is a little fragile to parse the stderr
+	// of the command, so this is a place to look if this starts
+	// failing.
+	text := stderr.String()
+	if strings.HasSuffix(text, "bookmark exists\n") {
+		return nil
+	}
+
+	os.Stderr.WriteString(text)
+	if err == nil {
+		err = errors.New("Non-empty stderr from bookmark command")
+	}
+	return err
+}
+
+// RemoveSnap removes a snapshot.
+func (ds *DataSet) RemoveSnap(name string) error {
+	cmd := ds.Path.Command("destroy", ds.Name+"@"+name)
+	return cmd.Run()
 }
