@@ -130,7 +130,7 @@ func (sv *SureVolume) SureSync() error {
 		// indicates nothing has been captured yet.
 		hdr, _ := st.ReadHeader()
 		if hdr == nil {
-			err = sv.FirstScan(&st, sn, stats)
+			err = sv.Scan(false, &st, sn, stats)
 			if err != nil {
 				return err
 			}
@@ -138,7 +138,7 @@ func (sv *SureVolume) SureSync() error {
 			if sv.ContainsSnap(&st, hdr, sn) {
 				continue
 			}
-			err = sv.UpdateScan(&st, sn, stats)
+			err = sv.Scan(true, &st, sn, stats)
 			if err != nil {
 				return err
 			}
@@ -159,10 +159,15 @@ func (sv *SureVolume) ContainsSnap(st *store.Store, hdr *weave.Header, snap stri
 	return false
 }
 
-// FirstScan performs the first scan of a filesystem to a new weave
-// file.
-func (sv *SureVolume) FirstScan(st *store.Store, snap string, stats *status.Manager) error {
+// Scan performs an sure scan.  If 'update' is true, uses the data
+// from the previous scan to speed up the hashing.  Otherwise, does a
+// fresh scan.
+func (sv *SureVolume) Scan(update bool, st *store.Store, snap string, stats *status.Manager) error {
 	fmt.Printf("Scanning %q:%q to %q\n", sv.Zfs, snap, sv.Sure)
+
+	if pretend {
+		return nil
+	}
 
 	stat := filepath.Join(sv.mount, ".zfs", "snapshot", snap)
 
@@ -173,39 +178,12 @@ func (sv *SureVolume) FirstScan(st *store.Store, snap string, stats *status.Mana
 		return err
 	}
 
-	meter := stats.Meter(250 * time.Millisecond)
-	tree, err := sure.ScanFs(stat, meter)
-	meter.Close()
-	if err != nil {
-		return err
-	}
-
-	hashUpdate(tree, stat, stats)
-
-	err = st.Write(tree)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// UpdateScan performs an update scan.
-func (sv *SureVolume) UpdateScan(st *store.Store, snap string, stats *status.Manager) error {
-	fmt.Printf("Scanning %q:%q to %q\n", sv.Zfs, snap, sv.Sure)
-
-	stat := filepath.Join(sv.mount, ".zfs", "snapshot", snap)
-
-	// Stat within the snapshot for the ZFS automounter to mount
-	// it.
-	_, err := os.Lstat(stat + "/.")
-	if err != nil {
-		return err
-	}
-
-	oldTree, err := st.ReadDat()
-	if err != nil {
-		return err
+	var oldTree *sure.Tree
+	if update {
+		oldTree, err = st.ReadDat()
+		if err != nil {
+			return err
+		}
 	}
 
 	meter := stats.Meter(250 * time.Millisecond)
@@ -215,7 +193,9 @@ func (sv *SureVolume) UpdateScan(st *store.Store, snap string, stats *status.Man
 		return err
 	}
 
-	sure.MigrateHashes(oldTree, newTree)
+	if update {
+		sure.MigrateHashes(oldTree, newTree)
+	}
 	hashUpdate(newTree, stat, stats)
 
 	err = st.Write(newTree)
