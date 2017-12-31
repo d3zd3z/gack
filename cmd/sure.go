@@ -19,12 +19,11 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"time"
 
 	"davidb.org/x/gack/zfs"
 	"davidb.org/x/gosure/status"
 	"davidb.org/x/gosure/store"
-	"davidb.org/x/gosure/sure"
+	"davidb.org/x/gosure/suredrive"
 	"davidb.org/x/gosure/weave"
 	"github.com/spf13/cobra"
 )
@@ -121,21 +120,16 @@ func (sv *SureVolume) SureSync() error {
 		st.Name = sn
 
 		// Read the header if there is one.  An error
-		// indicates nothing has been captured yet.
+		// indicates nothing has been captured yet.  If this
+		// snapshot has indeed been captured, skip it.
 		hdr, _ := st.ReadHeader()
-		if hdr == nil {
-			err = sv.Scan(false, &st, sn, stats)
-			if err != nil {
-				return err
-			}
-		} else {
-			if sv.ContainsSnap(&st, hdr, sn) {
-				continue
-			}
-			err = sv.Scan(true, &st, sn, stats)
-			if err != nil {
-				return err
-			}
+		if hdr != nil && sv.ContainsSnap(&st, hdr, sn) {
+			continue
+		}
+
+		err = sv.Scan(&st, sn, stats)
+		if err != nil {
+			return err
 		}
 	}
 
@@ -156,55 +150,26 @@ func (sv *SureVolume) ContainsSnap(st *store.Store, hdr *weave.Header, snap stri
 // Scan performs an sure scan.  If 'update' is true, uses the data
 // from the previous scan to speed up the hashing.  Otherwise, does a
 // fresh scan.
-func (sv *SureVolume) Scan(update bool, st *store.Store, snap string, stats *status.Manager) error {
+func (sv *SureVolume) Scan(st *store.Store, snap string, mgr *status.Manager) error {
 	fmt.Printf("Scanning %q:%q to %q\n", sv.Zfs, snap, sv.Sure)
 
 	if pretend {
 		return nil
 	}
 
-	stat := filepath.Join(sv.mount, ".zfs", "snapshot", snap)
+	scanDir := filepath.Join(sv.mount, ".zfs", "snapshot", snap)
 
 	// Stat within the snapshot for the ZFS automounter to mount
 	// it.
-	_, err := os.Lstat(stat + "/.")
+	_, err := os.Lstat(scanDir + "/.")
 	if err != nil {
 		return err
 	}
 
-	var oldTree *sure.Tree
-	if update {
-		oldTree, err = st.ReadDat()
-		if err != nil {
-			return err
-		}
-	}
-
-	meter := stats.Meter(250 * time.Millisecond)
-	newTree, err := sure.ScanFs(stat, meter)
-	meter.Close()
-	if err != nil {
-		return err
-	}
-
-	if update {
-		sure.MigrateHashes(oldTree, newTree)
-	}
-	hashUpdate(newTree, stat, stats)
-
-	err = st.Write(newTree)
+	err = suredrive.Scan(st, scanDir, mgr)
 	if err != nil {
 		return err
 	}
 
 	return nil
-}
-
-func hashUpdate(tree *sure.Tree, dir string, stats *status.Manager) {
-	est := tree.EstimateHashes()
-	meter := stats.Meter(250 * time.Millisecond)
-	prog := sure.NewProgress(est.Files, est.Bytes, meter)
-	prog.Flush()
-	tree.ComputeHashes(&prog, dir)
-	meter.Close()
 }
