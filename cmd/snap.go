@@ -103,7 +103,7 @@ func init() {
 
 func (v *SnapVolume) Snap(now time.Time) error {
 	name := fmt.Sprintf("%s-%s", v.Convention,
-		now.UTC().Format("20060102150405"))
+		now.UTC().Format("200601021504"))
 	fmt.Printf("Snapshot %s@%s\n", v.Zfs, name)
 
 	if pretend {
