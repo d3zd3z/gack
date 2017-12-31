@@ -57,6 +57,14 @@ func init() {
 	RootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 }
 
+type Config struct {
+	Snap   SnapConfig
+	Sure   SureConfig
+	Restic ResticConfig
+}
+
+var GackConfig Config
+
 // initConfig reads in config file and ENV variables if set.
 func initConfig() {
 	if cfgFile != "" {
@@ -80,5 +88,10 @@ func initConfig() {
 	// If a config file is found, read it in.
 	if err := viper.ReadInConfig(); err == nil {
 		fmt.Println("Using config file:", viper.ConfigFileUsed())
+	}
+
+	if err := viper.Unmarshal(&GackConfig); err != nil {
+		fmt.Println(err)
+		os.Exit(1)
 	}
 }

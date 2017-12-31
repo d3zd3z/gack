@@ -62,7 +62,7 @@ func (ts *tstate) makeTree() {
 		ts.t.Fatal(err)
 	}
 
-	now = now.Add(5 * time.Second)
+	now = now.Add(5 * time.Minute)
 	err = snapconf.Volumes[0].Snap(now)
 	if err != nil {
 		ts.t.Fatal(err)

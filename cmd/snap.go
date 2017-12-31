@@ -21,7 +21,6 @@ import (
 
 	"davidb.org/x/gack/zfs"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 )
 
 // snapCmd represents the snap command
@@ -44,12 +43,7 @@ var (
 )
 
 func snapPruneCmd(action func(vol *SnapVolume, conv *SnapConvention) error) {
-	var config SnapConfig
-	err := viper.UnmarshalKey("snap", &config)
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
+	config := &GackConfig.Snap
 
 	allConvs := make(map[string]*SnapConvention)
 	for j := range config.Conventions {
@@ -66,7 +60,7 @@ func snapPruneCmd(action func(vol *SnapVolume, conv *SnapConvention) error) {
 			continue
 		}
 
-		err = action(vol, conv)
+		err := action(vol, conv)
 		if err != nil {
 			fmt.Printf("Error: %s\n", err)
 			os.Exit(1)

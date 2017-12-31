@@ -27,7 +27,6 @@ import (
 	"davidb.org/x/gosure/sure"
 	"davidb.org/x/gosure/weave"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 )
 
 // sureCmd represents the sure command
@@ -36,16 +35,11 @@ var sureCmd = &cobra.Command{
 	Short: "Update the sure databases",
 	Long:  `Update the sure database associated with this backup convention.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		var config SureConfig
-		err := viper.UnmarshalKey("sure", &config)
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-		}
+		config := &GackConfig.Sure
 
 		for i := range config.Volumes {
 			fmt.Printf("Sure update %q\n", config.Volumes[i].Name)
-			err = config.Volumes[i].SureSync()
+			err := config.Volumes[i].SureSync()
 			if err != nil {
 				fmt.Println(err)
 				os.Exit(1)
