@@ -53,12 +53,6 @@ func (v *SnapVolume) Prune(conv *SnapConvention) error {
 
 	fmt.Printf("Need to look through %d snapshots\n", len(ds.Snaps))
 
-	// Determine the local time to interpret these times
-	// accordingly.  Unclear if this does the right thing with
-	// DST.  (It does not, we really should use either UTC, or put
-	// the TZ on the names).
-	tz := time.Now().Format(" -0700 MST")
-
 	// Go through each snapshot trying to decode a name from it
 	// that matches the given pattern
 	re := regexp.MustCompile("^" + regexp.QuoteMeta(conv.Name) + `(\d*)-(\d+)$`)
@@ -95,7 +89,7 @@ func (v *SnapVolume) Prune(conv *SnapConvention) error {
 		}
 
 		// Assume the date is of this form.
-		tm, err := time.Parse("200601021504 -0700 MST", m[2]+tz)
+		tm, err := time.Parse("200601021504", m[2])
 		if err != nil {
 			fmt.Printf("Invalid time: %q (%s)\n", m[2], err)
 			continue
