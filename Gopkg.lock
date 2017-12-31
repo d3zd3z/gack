@@ -2,6 +2,12 @@
 
 
 [[projects]]
+  branch = "master"
+  name = "davidb.org/x/gosure"
+  packages = ["sha","status","store","sure","suredrive","weave"]
+  revision = "0b5311076c526833c09faa4e9b7a6694c07d1353"
+
+[[projects]]
   name = "github.com/davecgh/go-spew"
   packages = ["spew"]
   revision = "346938d642f2ec3594ed81d874461961cd0faa76"
@@ -106,6 +112,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "79a2ce80d730846472e1f6427120c353682db7c29f9107b18cfadd90b8c0c049"
+  inputs-digest = "e703d8ac29412d7ee73b2e34b3f02239a67a23b6f31a7be96f238e2d354e9f5f"
   solver-name = "gps-cdcl"
   solver-version = 1
