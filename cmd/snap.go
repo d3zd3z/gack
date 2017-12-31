@@ -19,6 +19,7 @@ import (
 	"os"
 	"time"
 
+	"davidb.org/x/gack/zfs"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -105,5 +106,16 @@ func (v *SnapVolume) Snap(now time.Time) error {
 		now.Format("20060102150405"))
 	fmt.Printf("Snapshot %s@%s\n", v.Zfs, name)
 
-	return nil
+	if pretend {
+		return nil
+	}
+
+	path := zfs.ParsePath(v.Zfs)
+	dss, err := zfs.GetSnaps(path)
+	if err != nil {
+		return err
+	}
+	ds := dss[0]
+
+	return ds.AddSnap(name)
 }

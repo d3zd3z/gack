@@ -165,3 +165,9 @@ func (ds *DataSet) RemoveSnap(name string) error {
 	cmd := ds.Path.Command("destroy", ds.Name+"@"+name)
 	return cmd.Run()
 }
+
+// AddSnap creates a new snapshot.
+func (ds *DataSet) AddSnap(name string) error {
+	cmd := ds.Path.Command("snapshot", ds.Name+"@"+name)
+	return cmd.Run()
+}
