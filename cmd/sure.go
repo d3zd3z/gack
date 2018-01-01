@@ -21,9 +21,9 @@ import (
 	"regexp"
 
 	"davidb.org/x/gack/zfs"
+	"davidb.org/x/gosure"
 	"davidb.org/x/gosure/status"
 	"davidb.org/x/gosure/store"
-	"davidb.org/x/gosure/suredrive"
 	"davidb.org/x/gosure/weave"
 	"github.com/spf13/cobra"
 )
@@ -166,7 +166,7 @@ func (sv *SureVolume) Scan(st *store.Store, snap string, mgr *status.Manager) er
 		return err
 	}
 
-	err = suredrive.Scan(st, scanDir, mgr)
+	err = gosure.Scan(st, scanDir, mgr)
 	if err != nil {
 		return err
 	}
