@@ -6,6 +6,7 @@ import (
 	"bufio"
 	"bytes"
 	"errors"
+	"fmt"
 	"log"
 	"os"
 	"os/exec"
@@ -170,4 +171,16 @@ func (ds *DataSet) RemoveSnap(name string) error {
 func (ds *DataSet) AddSnap(name string) error {
 	cmd := ds.Path.Command("snapshot", ds.Name+"@"+name)
 	return cmd.Run()
+}
+
+// ShortName removes the prefix from this path.  An empty string would
+// be equivalent to the path.  Returns an error if the name doesn't
+// match the prefix.
+func ShortName(p Path, name string) (string, error) {
+	pname := p.Name()
+	if !strings.HasPrefix(name, pname) {
+		return "", fmt.Errorf("Returned name %q doesn't have %q prefix", name, pname)
+	}
+
+	return name[len(pname):], nil
 }

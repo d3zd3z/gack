@@ -61,6 +61,7 @@ type Config struct {
 	Snap   SnapConfig
 	Sure   SureConfig
 	Restic ResticConfig
+	Clone  CloneConfig
 }
 
 var GackConfig Config
