@@ -88,8 +88,15 @@ func (cv *CloneVolume) CloneSync() error {
 		}
 
 		dest, ok := dests[sn]
-		if !ok || len(dest.Snaps) == 0 {
-			panic("TODO: Need to construct dest path, etc")
+		if !ok {
+			// The destination volume doesn't even exist,
+			// synthesize one so that we can backup to it.
+			dest = &zfs.DataSet{
+				Path: dpath,
+				Name: dlist[0].Name + sn,
+			}
+		}
+		if len(dest.Snaps) == 0 {
 			err = cv.FreshClone(src, dest)
 		} else {
 			err = cv.UpdateClone(src, dest)
@@ -105,7 +112,14 @@ func (cv *CloneVolume) CloneSync() error {
 // FreshClone performs an initial clone to where there is no
 // destination filesystem.
 func (cv *CloneVolume) FreshClone(src, dest *zfs.DataSet) error {
-	panic("TODO")
+	fmt.Printf("Clone %q to %q\n", src.Name, dest.Name)
+
+	if len(src.Snaps) == 0 {
+		return fmt.Errorf("Source has no snapshots: %q", src.Path)
+	}
+
+	args := []string{src.Name + "@" + src.Snaps[len(src.Snaps)-1]}
+	return cv.RunClone(src, dest, args)
 }
 
 // UpdateClone performs an updating clone where the destination should
