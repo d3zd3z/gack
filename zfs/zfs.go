@@ -48,7 +48,7 @@ func (p *RemotePath) Name() string {
 }
 
 func (p *RemotePath) Command(args ...string) *exec.Cmd {
-	largs := append([]string{p.Host, "zfs"}, args...)
+	largs := append([]string{p.Host, "sudo", "/sbin/zfs"}, args...)
 	cmd := exec.Command("ssh", largs...)
 	cmd.Stderr = os.Stderr
 	return cmd
