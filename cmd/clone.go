@@ -98,9 +98,11 @@ func (cv *CloneVolume) CloneSync() error {
 		}
 		if len(dest.Snaps) == 0 {
 			err = cv.FreshClone(src, dest)
-		} else {
-			err = cv.UpdateClone(src, dest)
+			if err != nil {
+				return err
+			}
 		}
+		err = cv.UpdateClone(src, dest)
 		if err != nil {
 			return err
 		}
@@ -110,7 +112,9 @@ func (cv *CloneVolume) CloneSync() error {
 }
 
 // FreshClone performs an initial clone to where there is no
-// destination filesystem.
+// destination filesystem.  ZFS send doesn't seem to be able to send
+// the full list of incrementals on an initial scan, so only send the
+// first one, and we will do an update after the first fresh clone.
 func (cv *CloneVolume) FreshClone(src, dest *zfs.DataSet) error {
 	fmt.Printf("Clone %q to %q\n", src.Name, dest.Name)
 
@@ -118,8 +122,17 @@ func (cv *CloneVolume) FreshClone(src, dest *zfs.DataSet) error {
 		return fmt.Errorf("Source has no snapshots: %q", src.Path)
 	}
 
-	args := []string{src.Name + "@" + src.Snaps[len(src.Snaps)-1]}
-	return cv.RunClone(src, dest, args)
+	args := []string{src.Name + "@" + src.Snaps[0]}
+	err := cv.RunClone(src, dest, args)
+	if err != nil {
+		return err
+	}
+
+	// Since we're expecting to run a regular clone after this,
+	// indicate that the destination is here so we know where to
+	// start the backup sequence from.
+	dest.Snaps = append(dest.Snaps, src.Snaps[0])
+	return nil
 }
 
 // UpdateClone performs an updating clone where the destination should
