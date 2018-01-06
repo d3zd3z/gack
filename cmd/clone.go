@@ -33,6 +33,9 @@ var cloneCmd = &cobra.Command{
 filesystems mentioned there.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		for _, v := range GackConfig.Clone.Volumes {
+			if v.Skip {
+				continue
+			}
 			fmt.Printf("Clone %#v\n", v)
 			err := v.CloneSync()
 			if err != nil {
@@ -51,6 +54,7 @@ type CloneVolume struct {
 	Name   string
 	Source string
 	Dest   string
+	Skip   bool
 }
 
 func init() {
