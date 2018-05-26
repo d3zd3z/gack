@@ -62,6 +62,7 @@ type Config struct {
 	Sure   SureConfig
 	Restic ResticConfig
 	Clone  CloneConfig
+	Borg   BorgConfig
 }
 
 var GackConfig Config
