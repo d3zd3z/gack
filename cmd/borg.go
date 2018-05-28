@@ -54,6 +54,7 @@ config file.`,
 
 type BorgOptions struct {
 	Pretend bool
+	Limit   int
 }
 
 var borgOptions BorgOptions
@@ -77,6 +78,9 @@ func init() {
 
 	borgCmd.Flags().BoolVarP(&borgOptions.Pretend, "pretend", "n", false,
 		"show what would have been executed, but don't actually run")
+
+	borgCmd.Flags().IntVarP(&borgOptions.Limit, "limit", "l", 0,
+		"Limit the total number of backups to be run.")
 	// Here you will define your flags and configuration settings.
 
 	// Cobra supports Persistent Flags which will work for this command
@@ -87,6 +91,8 @@ func init() {
 	// is called directly, e.g.:
 	// resticCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 }
+
+var borgCount = 0
 
 // Sync attempts to catch up on any backups that need to be done
 // between snapshots and the borg volume.
@@ -161,8 +167,13 @@ func (bv *BorgVolume) Sync() error {
 			fmt.Printf("Would back up %q:%q to %q\n", bv.Zfs, snap, bv.Repo)
 		}
 
-		// Limit number run each time.
-		// break
+		// Check the limit.  Note that we will always do at
+		// least one from each volume.
+		borgCount++
+		if borgOptions.Limit > 0 && borgCount >= borgOptions.Limit {
+			fmt.Printf("Reached limit, stopping\n")
+			break
+		}
 	}
 
 	return nil
