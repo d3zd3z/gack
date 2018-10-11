@@ -16,11 +16,13 @@ package cmd
 
 import (
 	"fmt"
+	"os"
 	"regexp"
 	"time"
 
 	"davidb.org/x/gack/zfs"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 // pruneCmd represents the prune command
@@ -29,16 +31,37 @@ var pruneCmd = &cobra.Command{
 	Short: "Prune ",
 	Long:  `Prune any expired backups based on the policy given.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		snapPruneCmd(func(vol *SnapVolume, conv *SnapConvention) error {
-			return vol.Prune(conv)
-		})
+		if pruneBorg {
+			var config BorgConfig
+			err := viper.UnmarshalKey("borg", &config)
+			if err != nil {
+				fmt.Println(err)
+				os.Exit(1)
+			}
+
+			for i := range config.Volumes {
+				err = config.Volumes[i].Prune()
+				if err != nil {
+					fmt.Println(err)
+					os.Exit(1)
+				}
+			}
+		} else {
+			snapPruneCmd(func(vol *SnapVolume, conv *SnapConvention) error {
+				return vol.Prune(conv)
+			})
+		}
 	},
 }
+
+var pruneBorg bool
 
 func init() {
 	RootCmd.AddCommand(pruneCmd)
 	pruneCmd.Flags().BoolVarP(&pretend, "pretend", "n", false,
 		"show what would have been executed, but don't actually run")
+	pruneCmd.Flags().BoolVarP(&pruneBorg, "borg", "b", false,
+		"Prune volumes, other than latest, that have been removed from borg")
 }
 
 func (v *SnapVolume) Prune(conv *SnapConvention) error {

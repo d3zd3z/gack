@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"davidb.org/x/gack/borgcmd"
 	"davidb.org/x/gack/zfs"
@@ -200,4 +201,92 @@ func (bv *BorgVolume) SyncSingle(snap string) error {
 	defer mount.Close()
 
 	return bv.repo.RunBackup(bv.Bind, bv.Name+"-"+snap)
+}
+
+// Prune compares the list of snapshots in the ZFS volume, and
+// compares it with the snapshots in the borg backup.  After removing
+// ones that are likely to be newer than the latest borg backup, any
+// ZFS snapshots that don't have borg backups will be destroyed on
+// ZFS.
+func (bv *BorgVolume) Prune() error {
+	path := zfs.ParsePath(bv.Zfs)
+	dss, err := zfs.GetSnaps(path)
+	if err != nil {
+		return err
+	}
+
+	ds := dss[0]
+
+	// fmt.Printf("borg: %#v\n", bv)
+	// for _, dd := range ds {
+	// 	fmt.Printf("  %#v\n", dd)
+	// }
+
+	bv.repo = &borgcmd.Repo{
+		Path: bv.Repo,
+	}
+
+	snaps, err := bv.repo.GetSnapshots()
+	if err != nil {
+		return err
+	}
+	// fmt.Printf("%d Borg snaps\n", len(snaps.Archives))
+	// for _, bs := range snaps.Archives {
+	// 	fmt.Printf("  %#v\n", bs)
+	// }
+
+	prefix := bv.Name + "-"
+	borgs := make(map[string]bool)
+	for _, bsnap := range snaps.Archives {
+		if !strings.HasPrefix(bsnap.Name, prefix) {
+			continue
+		}
+		borgs[bsnap.Name[len(prefix):]] = true
+	}
+	// fmt.Printf("Snaps: %#v\n", borgs)
+
+	// Walk through the zfs snapshots, in reverse, pruning those
+	// not present in borg.  However, skip snapshots until we find
+	// one present in Borg.
+	skipping := true
+
+	var removes []string
+	for i := len(ds.Snaps) - 1; i >= 0; i-- {
+		name := ds.Snaps[i]
+		if borgs[name] {
+			// fmt.Printf("have: %q\n", name)
+			skipping = false
+		} else {
+			if skipping {
+				fmt.Printf("Skip: %q\n", name)
+			} else {
+				// fmt.Printf("Prune: %q\n", name)
+				removes = append(removes, name)
+			}
+		}
+	}
+
+	reverseStrings(removes)
+
+	if pretend {
+		fmt.Printf("Would remove:\n")
+		for _, s := range removes {
+			fmt.Printf("    %s\n", s)
+		}
+	} else {
+		for _, s := range removes {
+			fmt.Printf("    Remove %s\n", s)
+			err = ds.Bookmark(s)
+			if err != nil {
+				return err
+			}
+
+			err = ds.RemoveSnap(s)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
 }
