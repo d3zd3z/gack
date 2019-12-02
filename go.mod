@@ -27,3 +27,5 @@ require (
 	gopkg.in/check.v1 v1.0.0-20161208181325-20d25e280405 // indirect
 	gopkg.in/yaml.v2 v2.2.1 // indirect
 )
+
+go 1.13
